@@ -1,10 +1,8 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Subject } from 'rxjs';
+import { BehaviorSubject, Observable, Subscriber } from 'rxjs';
 import { environment } from 'src/environments/environment';
-import { LocalStorageService } from '../../services/local-storage.service';
-import { requestHandler } from '../../utils/requestHandler';
-import { LoginResponse, requestResponse, systemUser } from '../../interfaces';
+import { requestHandler } from '../../utils/requestHandler.service';
+import { LoginResponse, requestResponse, systemUser } from '../../../shared/interfaces';
 
 export interface Credentials  {
   email: string,
@@ -16,40 +14,50 @@ export interface Credentials  {
 })
 export class AuthService {
   private apiUrl = environment.apiUrl;
-  private loginHandler!:requestHandler <LoginResponse, Credentials>
-  public loginResponse$!: Subject<requestResponse<LoginResponse>>;
-  public systemUser$ = new BehaviorSubject<systemUser>({ id: '', accessToken: '', role: '', email: ''});
+  private _systemUser$ = new BehaviorSubject<systemUser>({ id: '', accessToken: '', role: '', email: ''});
+  public systemUser$: Observable<systemUser> = this._systemUser$;
 
-  constructor(private http: HttpClient, private localStorageService: LocalStorageService ) {
-    this.loginHandler = new requestHandler<LoginResponse, Credentials>(this.http)
-    this.loginResponse$ = this.loginHandler.response$;
 
-    this.loginResponse$.subscribe((state)=> {
-      if(state.data){
-        const newUser = {
-          id: state.data.user.id.toString(), 
-          accessToken: state.data.accessToken, 
-          role: state.data.user.role, 
-          email: state.data.user.email
-        }
-        this.systemUser$.next(newUser);
-      }
-    });
-    this.systemUser$.subscribe((user)=>{
-      this.localStorageService.setStorage("accessToken", user.accessToken);
-      this.localStorageService.setStorage("role", user.role);
-      this.localStorageService.setStorage("idUser", user.id);
-    })
+  constructor(private requestHandler: requestHandler) {
   }
 
+  getSystemUser = () => this._systemUser$.getValue() 
+
   login(credentials: Credentials) {
-    const url = `${this.apiUrl}/login`;
-    const body = credentials;
-    this.loginHandler.makeCall('POST', url, body);
+    return new Observable((subscriber: Subscriber<requestResponse<LoginResponse>>) => {   
+      const url = `${this.apiUrl}/login`;
+      const body = credentials;
+
+      const subscriptionRequest = this.requestHandler.makeCall<LoginResponse, Credentials>('POST', url, body)
+      .subscribe({
+        next: (state) => {
+          if (state.data) {
+            const newUser = {
+              id: state.data.user.id.toString(), 
+              accessToken: state.data.accessToken, 
+              role: state.data.user.role, 
+              email: state.data.user.email
+            }
+            this._systemUser$.next(newUser);
+          }
+          subscriber.next(state);
+          
+        },
+        complete () {
+          subscriber.complete(); 
+        }
+      });
+
+      return {
+        unsubscribe() {
+          subscriptionRequest.unsubscribe();
+        }
+      }
+    });
   }
 
   logout () {
-    this.systemUser$.next({ id: '', accessToken: '', role: '', email: ""});
+    this._systemUser$.next({ id: '', accessToken: '', role: '', email: ""});
   }
 
 }

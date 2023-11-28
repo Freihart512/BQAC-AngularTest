@@ -11,8 +11,8 @@ export class AppComponent {
   title = 'BurgerQueen';
 
   redirections: { [key: string]: string } = {
-    mesera: 'orders/create',
-    cocinera: '',
+    waiter: 'orders/create',
+    chef: '',
     admin: '',
   };
 

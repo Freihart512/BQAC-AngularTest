@@ -1,156 +1,107 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { AuthService, Credentials } from './auth.service';
-import { LoginResponse } from '../../../shared/models/Login';
-import { of } from 'rxjs';
-//import { environment } from 'src/environments/environment';
-import { HttpClient } from '@angular/common/http';
-import { first } from 'rxjs/operators';
-//import { systemUser } from '../../interfaces'; 
-
-class MockLocalStorageService {
-  private storage: { [key: string]: any } = {};
-
-  setItem(key: string, value: any): void {
-    this.storage[key] = value;
-  }
-
-  getItem(key: string): any {
-    return this.storage[key] || null;
-  }
-}
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { first, skip, last } from 'rxjs/operators';
+import { Observable, concat } from 'rxjs';
 
 describe('AuthService', () => {
   let authService: AuthService;
   let httpTestingController: HttpTestingController;
-  let httpClientSpy: { request: jasmine.Spy };
-  //let localStorageService: MockLocalStorageService; 
-
-
   const mockCredentials: Credentials = { email: 'test@test.com', password: 'password' };
 
-  const mockResponse :LoginResponse = {
-      user: {
-        id: 1,
-        role: 'user',
-        email: 'test@test.com',
-      },
-      accessToken: 'mockAccessToken',
-    };
+  const mockResponse = {
+    user: {
+      id: 1,
+      role: 'user',
+      email: 'test@test.com',
+    },
+    accessToken: 'mockAccessToken',
+  };
 
   beforeEach(() => {
-    httpClientSpy = jasmine.createSpyObj('HttpClient', ['request']);
-
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
       providers: [
         AuthService,
-        { provide: MockLocalStorageService, useClass: MockLocalStorageService },
-        { provide: HttpClient, useValue: httpClientSpy },
+        { provide: HttpClient },
       ],    });
     
     authService = TestBed.inject(AuthService);
     httpTestingController = TestBed.inject(HttpTestingController);
-    //localStorageService = TestBed.inject(MockLocalStorageService);
   });
-  
-  afterEach(()=>{
-    authService.loginResponse$.unsubscribe()
-    authService.systemUser$.unsubscribe()
-  })
-
-  it('call the method login must set isloading a true',
-    (done: DoneFn) => {
-      httpClientSpy.request.and.returnValue(of(mockResponse));   
-      authService.loginResponse$.pipe(first()).
-      subscribe(response => {
-        expect(response.isLoading).toBeTrue();
-        done();
-      });
-      authService.login(mockCredentials);
-    }
-  )
-
-  it('call the method login if the response is valid must set system user',
-    (done: DoneFn) => {
-      httpClientSpy.request.and.returnValue(of(mockResponse));   
-      authService.login(mockCredentials);
-      authService.systemUser$.
-      subscribe(response => {
-        expect(response).toEqual({id: '1', accessToken: 'mockAccessToken', role: 'user', email: 'test@test.com'});
-        done();
-      });
-    }
-  )
-
-
-    // (x=> console.log("system", x))
-
-      // authService.login(mockCredentials);
-
-
-  // it('send a POST request when calling login', () => new Promise((resolve) => {
-    
-  //   httpClientSpy.request.and.returnValue(of(mockResponse));
-
-  //   authService.login(mockCredentials);
-  //   // expect(httpClientSpy.post).toHaveBeenCalledWith(`${environment.apiUrl}/login`, mockCredentials);
-  //   authService.loginResponse$.subscribe(x => {
-  //     console.log("HOLAAAA",x)
-  //     resolve("AQUI Se REsolvio")
-  //   })
-  //   // authService.loginResponse$.subscribe((response) => {
-  //   //   console.log("loginResponse", response)
-  //   //   // if(response.isLoading){
-  //   //   //   expect(response.data).toBeNull()
-  //   //   //   expect(response.error).toBeNull()
-  //   //   // }
-  //   //   // if(response.data){
-  //   //   //   expect(response.isLoading).toBeFalse()
-  //   //   //   expect(response.error).toBeNull()
-  //   //   //   expect(response.data).toEqual(mockResponse)
-  //   //   //   done()
-  //   //   // }
-  //   //   done()
-  //   // });
-
-  // }));
-
-  // it('systemUSer$ is filled correctly', () => {
-  //   httpClientSpy.post.and.returnValue(of(mockResponse));
-  //   authService.login(mockCredentials);
-
-  //   authService.systemUser$.subscribe((user: systemUser) => {
-  //     expect(user.id).toBe('1');
-  //     expect(user.role).toBe('user');
-  //     expect(user.email).toBe('test@test.com');
-  //   });
-  // });
-
-  // it('localStorage is filled correctly', () => {
-  //   httpClientSpy.post.and.returnValue(of(mockResponse));
-  //   authService.login(mockCredentials);
-
-  //   expect(localStorageService.getItem('accessToken')).toBe('mockAccessToken');
-  //   expect(localStorageService.getItem('role')).toBe('user');
-  //   expect(localStorageService.getItem('idUser')).toBe('1');
-  // });
- 
-  // it('should clear systemUser$ when calling logout', () => {
-  //   authService.logout();
-  //   authService.systemUser$.subscribe((user) => {
-  //     expect(user).toEqual({ id: '', accessToken: '', role: '', email: '' });
-  //   });
-  // });
-
-  // it('should clear localStorage when calling logout', () => {
-  //   authService.logout();
-  //   expect(localStorageService.getItem('accessToken')).toBe(null);
-  //   expect(localStorageService.getItem('role')).toBe(null);
-  //   expect(localStorageService.getItem('idUser')).toBe(null);
-  // });
 
   afterEach(() => {
     httpTestingController.verify();
+  });
+  
+  it('call the method login must set isloading a true',
+    (done: DoneFn) => {
+      authService.login(mockCredentials).pipe(first()).subscribe({
+        next(state){
+          expect(state.isLoading).toBeTrue();
+        },
+        complete(){
+          done();
+        }
+      });
+      httpTestingController.expectOne('http://localhost:8089/login');
+    }
+  )
+
+  it('call the method login if the request fails must populate prop error',
+  (done: DoneFn) => {
+    authService.login(mockCredentials).pipe(last()).subscribe({
+      next(state){
+        expect((state.error as HttpErrorResponse).status).toEqual(404);
+      },
+      complete(){
+        done();
+      }
+    });
+    const mock = httpTestingController.expectOne('http://localhost:8089/login');
+    mock.flush('',{status:404, statusText:""});
+  }
+)
+
+  it('call the method login if the response is valid must push a systemUser into the observer and method getSystemUser must retrun the current user',
+    (done: DoneFn) => { 
+      concat(authService.login(mockCredentials),authService.systemUser$)
+      .pipe(skip(2))
+      .subscribe({
+        next:(response) => {
+          expect(response).toEqual({id: '1', accessToken: 'mockAccessToken', role: 'user', email: 'test@test.com'});
+          expect(authService.getSystemUser()).toEqual({id: '1', accessToken: 'mockAccessToken', role: 'user', email: 'test@test.com'});
+          done();
+        }
+      });
+      const mock = httpTestingController.expectOne('http://localhost:8089/login');
+      mock.flush(mockResponse)
+    }
+  )
+
+  it('should clear systemUser$ when calling logout', (done: DoneFn) => {
+    const observable = new Observable(s => {
+      authService.systemUser$.subscribe(state => {
+        if(state.id){
+          s.complete()
+          authService.logout()
+        }
+      })
+    })
+    concat(authService.login(mockCredentials), observable, authService.systemUser$)
+    // I skip 3 values because first i make a login and 
+    // when the login is complete and 
+    // we have information in the systemUser$ 
+    // make a logout call to clean it 
+      .pipe(skip(3))
+      .subscribe({
+        next:(response) => {
+          expect(response).toEqual({ id: '', accessToken: '', role: '', email: '' });
+          done();
+        }
+      });
+      const mock = httpTestingController.expectOne('http://localhost:8089/login');
+      mock.flush(mockResponse)
   });
 });
