@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, Subscriber } from 'rxjs';
 import { environment } from 'src/environments/environment';
 import { requestHandler } from '../../utils/requestHandler.service';
-import { LoginResponse, requestResponse, systemUser } from '../../../shared/interfaces';
+import { LoginResponse, requestResponse, systemUser } from '../../interfaces';
 
 export interface Credentials  {
   email: string,

@@ -2,11 +2,11 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ReactiveFormsModule } from '@angular/forms';
 import { RouterTestingModule } from '@angular/router/testing';
 import { SignInComponent } from './sign-in.component';
-import { AuthService } from 'src/app/@core/authentication/services/auth.service';
+import { AuthService } from 'src/app/shared/services/auth/auth.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { Observable, of } from 'rxjs';
-import { requestHandler } from '../../utils/requestHandler.service';
+import { requestHandler } from '../../../shared/utils/requestHandler.service';
 import { requestResponse } from 'src/app/shared/interfaces';
 
 describe('SignInComponent', () => {
